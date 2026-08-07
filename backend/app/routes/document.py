@@ -1,14 +1,13 @@
 import os
 import shutil
-
 from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
 from sqlalchemy.orm import Session
-
 from app.database.dependencies import get_db
 from app.database.document_model import Document
 from app.schemas.document import DocumentResponse
 from app.services.text_extractor import TextExtractor
 from app.services.text_chunker import TextChunker
+from app.services.embedding_service import EmbeddingService
 
 router = APIRouter(
     prefix="/documents",
@@ -16,7 +15,6 @@ router = APIRouter(
 )
 
 UPLOAD_FOLDER = "uploads"
-
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 
@@ -28,7 +26,6 @@ async def upload_document(
     file: UploadFile = File(...),
     db: Session = Depends(get_db)
 ):
-
     allowed_extensions = [
         ".pdf",
         ".docx",
@@ -52,18 +49,21 @@ async def upload_document(
         shutil.copyfileobj(file.file, buffer)
 
     extracted_text = TextExtractor.extract(file_path)
-
     chunks = TextChunker.chunk_text(extracted_text)
 
+    # Generate embeddings for document chunks
+    print("\nGenerating embeddings for document chunks...")
+    embeddings = EmbeddingService.generate_embeddings(chunks)
+
     print("\n" + "=" * 70)
-    print("DOCUMENT CHUNKS")
+    print("DOCUMENT PROCESSING SUMMARY")
     print("=" * 70)
-
-    for i, chunk in enumerate(chunks, start=1):
-        print(f"\nChunk {i}")
-        print("-" * 40)
-        print(chunk)
-
+    print(f"Total Chunks Created  : {len(chunks)}")
+    print(f"Total Embeddings      : {len(embeddings)}")
+    if embeddings:
+        print(f"Vector Dimension      : {len(embeddings[0])}")
+        print(f"Chunk 1 Preview       : {chunks[0][:80]}...")
+        print(f"Chunk 1 Vector Start  : {embeddings[0][:4]}...")
     print("=" * 70)
 
     document = Document(
