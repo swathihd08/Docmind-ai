@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 from pydantic import BaseModel
 
 
@@ -12,3 +12,15 @@ class DocumentResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class SearchRequest(BaseModel):
+    query: str
+    top_k: int = 3
+
+
+class SearchResultItem(BaseModel):
+    doc_id: int
+    filename: str
+    text: str
+    distance: float
