@@ -24,3 +24,14 @@ class SearchResultItem(BaseModel):
     filename: str
     text: str
     distance: float
+
+
+class CitationItem(BaseModel):
+    filename: str
+    doc_id: int
+
+
+class AskResponse(BaseModel):
+    query: str
+    answer: str
+    citations: List[CitationItem]

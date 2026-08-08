@@ -5,11 +5,17 @@ from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database.dependencies import get_db
 from app.database.document_model import Document
-from app.schemas.document import DocumentResponse, SearchRequest, SearchResultItem
+from app.schemas.document import (
+    DocumentResponse,
+    SearchRequest,
+    SearchResultItem,
+    AskResponse,
+)
 from app.services.text_extractor import TextExtractor
 from app.services.text_chunker import TextChunker
 from app.services.embedding_service import EmbeddingService
 from app.services.vector_store_service import VectorStoreService
+from app.services.gemini_service import GeminiService
 
 router = APIRouter(
     prefix="/documents",
@@ -126,3 +132,48 @@ async def search_documents(request: SearchRequest):
     print("=" * 70)
 
     return results
+
+
+@router.post(
+    "/ask",
+    response_model=AskResponse
+)
+async def ask_question(request: SearchRequest):
+    """End-to-end RAG endpoint: Retrieves relevant chunks and generates an AI answer."""
+    if not request.query.strip():
+        raise HTTPException(status_code=400, detail="Question cannot be empty.")
+
+    # 1. Generate query embedding
+    print(f"\n[RAG Pipeline] Generating query embedding: '{request.query}'")
+    query_embeddings = EmbeddingService.generate_embeddings([request.query])
+
+    if not query_embeddings:
+        raise HTTPException(status_code=500, detail="Failed to generate query embedding.")
+
+    # 2. Search FAISS vector store
+    print("[RAG Pipeline] Searching FAISS index for top context chunks...")
+    context_chunks = VectorStoreService.search(
+        query_embedding=query_embeddings[0],
+        top_k=request.top_k
+    )
+
+    # 3. Generate answer using Gemini
+    print("[RAG Pipeline] Sending context chunks to Gemini AI...")
+    rag_result = GeminiService.generate_answer(
+        query=request.query,
+        context_chunks=context_chunks
+    )
+
+    print("\n" + "=" * 70)
+    print("RAG GENERATED ANSWER")
+    print("=" * 70)
+    print(f"Question : {request.query}")
+    print(f"Answer   : {rag_result['answer']}")
+    print(f"Citations: {[c['filename'] for c in rag_result['citations']]}")
+    print("=" * 70)
+
+    return AskResponse(
+        query=request.query,
+        answer=rag_result["answer"],
+        citations=rag_result["citations"]
+    )
