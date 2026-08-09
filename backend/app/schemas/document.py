@@ -14,9 +14,15 @@ class DocumentResponse(BaseModel):
         from_attributes = True
 
 
+class ChatMessage(BaseModel):
+    role: str
+    content: str
+
+
 class SearchRequest(BaseModel):
     query: str
     top_k: int = 3
+    chat_history: Optional[List[ChatMessage]] = []
 
 
 class SearchResultItem(BaseModel):
