@@ -31,3 +31,9 @@ export const askQuestion = async (query, chatHistory = [], topK = 3) => {
 };
 
 export default api;
+
+// --- NEW: Delete a document by ID ---
+export const deleteDocument = async (id) => {
+  const response = await api.delete(`/documents/${id}`);
+  return response.data;
+};
